@@ -57,6 +57,10 @@ def join_feature_vector(*argsrdd):
     else:
         return frdd
 
+def print_check(s):
+    print(len(s[1][0][0]))
+    print(len(s[1][0][1]))
+    print(len(s[1][1]))
 
 def cStress(rdd: RDD) -> RDD:
     # TODO: TWH Temporary
@@ -109,8 +113,10 @@ def cStress(rdd: RDD) -> RDD:
     ecg_features = ecg_rr_rdd.map(lambda ds: (ds[0], ecg_feature_computation(ds[1], window_size=60, window_offset=60)))
 
     # computer cStress feature vector
-    features = join_feature_vector(ecg_features, rip_features, accel_features)
+    feature_vector = join_feature_vector(ecg_features, rip_features, accel_features)
 
-    feature_vector = features.map(lambda ds: (ds[0], assemble_feature_vector(rdds=ds[1])))
+    # feature_vector = features.map(lambda ds: (ds[0], assemble_feature_vector(rdds=ds[1])))
 
-    return f_vector
+    feature_vector.foreach(print_check)
+
+    return feature_vector

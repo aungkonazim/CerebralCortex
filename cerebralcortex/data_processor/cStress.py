@@ -115,8 +115,12 @@ def cStress(rdd: RDD) -> RDD:
     # computer cStress feature vector
     feature_vector = join_feature_vector(ecg_features, rip_features, accel_features)
 
+    stress_ground_truth = rdd.map(lambda ds:(ds['participant'],ds['stress_marks']))
+
+
+    print(stress_ground_truth.collect()[0][1].data)
     # feature_vector = features.map(lambda ds: (ds[0], assemble_feature_vector(rdds=ds[1])))
 
-    feature_vector.foreach(print_check)
+    # feature_vector.foreach(print_check)
 
     return feature_vector

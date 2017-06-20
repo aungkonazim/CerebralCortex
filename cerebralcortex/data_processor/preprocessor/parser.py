@@ -38,3 +38,14 @@ def data_processor(input_string):
         # Skip bad values and filter them later
         # print("ValueError: " + str(input))
         return
+
+
+def ground_truth_data_processor(input_string):
+    try:
+        [label, desc1, ts1, ts2, desc2] = input_string.split(',')
+        start_timestamp = datetime.fromtimestamp(float(ts1) / 1000.0, pytz.timezone('US/Central'))
+        end_timestamp = datetime.fromtimestamp(float(ts2) / 1000.0, pytz.timezone('US/Central'))
+        return DataPoint.from_tuple(start_time=start_timestamp, sample=(label,desc1,desc2), end_time=end_timestamp)
+
+    except ValueError:
+        return

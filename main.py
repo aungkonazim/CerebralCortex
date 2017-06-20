@@ -118,7 +118,7 @@ data = ids.map(lambda i: loader(i)).filter(lambda x: 'participant' in x)
 
 cstress_feature_vector = cStress(data)
 
-pprint(cstress_feature_vector.collect())
+# pprint(cstress_feature_vector.collect())
 
 
 # results = ids.map(loader)

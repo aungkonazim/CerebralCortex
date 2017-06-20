@@ -118,12 +118,10 @@ def cStress(rdd: RDD) -> RDD:
     feature_vector_final = feature_vector.map(lambda ds:(ds[0],[ecg_f for ecg_f in ds[1][0][0]],
                                                          [rip_f for rip_f in ds[1][0][1]],[accel_f for accel_f in ds[1][1]]))
 
-    print(feature_vector_final.collect()[0])
 
-    print(len(feature_vector_final.collect()[0]))
     stress_ground_truth = rdd.map(lambda ds:(ds['participant'],ds['stress_marks']))
 
-    # print(stress_ground_truth.collect()[0][1].data)
+    print(stress_ground_truth.collect()[0][1].data)
     # feature_vector = features.map(lambda ds: (ds[0], assemble_feature_vector(rdds=ds[1])))
 
     # feature_vector.foreach(print_check)

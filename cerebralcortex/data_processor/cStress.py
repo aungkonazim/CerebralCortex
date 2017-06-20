@@ -33,7 +33,7 @@ from cerebralcortex.data_processor.signalprocessing.dataquality import compute_o
 from cerebralcortex.data_processor.signalprocessing.dataquality import ecg_data_quality
 from cerebralcortex.data_processor.signalprocessing.dataquality import rip_data_quality
 from cerebralcortex.data_processor.signalprocessing.ecg import compute_rr_intervals
-
+from cerebralcortex.model_development.model_development import analyze_events_with_features
 
 def fix_two_joins(nested_data):
     key = nested_data[0]
@@ -115,14 +115,17 @@ def cStress(rdd: RDD) -> RDD:
     # computer cStress feature vector
     feature_vector = join_feature_vector(ecg_features, rip_features, accel_features)
 
-    feature_vector_final = feature_vector.map(lambda ds:(ds[0],[ecg_f for ecg_f in ds[1][0][0]],
-                                                         [rip_f for rip_f in ds[1][0][1]],[accel_f for accel_f in ds[1][1]]))
+    feature_vector_final = feature_vector.map(lambda ds:(ds[0],([ecg_f for ecg_f in ds[1][0][0]],
+                                                         [rip_f for rip_f in ds[1][0][1]],[accel_f for accel_f in ds[1][1]])))
 
 
     stress_ground_truth = rdd.map(lambda ds:(ds['participant'],ds['stress_marks']))
 
     feature_vector_with_ground_truth = feature_vector_final.join(stress_ground_truth)
 
+    train_test_with_ground_truth = feature_vector_with_ground_truth.map(lambda ds: (ds[0], analyze_events_with_features(ds)))
+
+    train_test_with_ground_truth.collect()
     # feature_vector = features.map(lambda ds: (ds[0], assemble_feature_vector(rdds=ds[1])))
 
     # feature_vector.foreach(print_check)

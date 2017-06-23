@@ -21,7 +21,7 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+import numpy as np
 from cerebralcortex.kernel.datatypes.datapoint import DataPoint
 from cerebralcortex.kernel.datatypes.datastream import DataStream
 
@@ -41,12 +41,25 @@ def analyze_events_with_features(features):
     subjects = []
 
     startTimes = {}
-    pid = features[0]
+
     for dp in stress_marks:
         if dp.sample[0][:2] == 'c4':
-            if pid not in startTimes:
-                startTimes[] = np.inf
-            startTimes[pid] = min(startTimes[pid], dp.start_time)
+            if features[0] not in startTimes:
+                startTimes[features[0]] = np.inf
+            startTimes[features[0]] = min(startTimes[features[0]], dp.start_time.timestamp())
+
+
+    feature_matrix = [None]*len(final_feature_stream_array[0].data)
+
+    for i in range(len(final_feature_stream_array[0].data)):
+        feature_matrix[i]=[]
+        for j in range(len(final_feature_stream_array[0:11])):
+            feature_matrix[i].append(final_feature_stream_array[j].data[i].sample)
+        feature_matrix[i]=(final_feature_stream_array[0].data[i].start_time.timestamp(), feature_matrix[i])
+
+
+
+
 
     # for line in features:
     #     id = line[0]

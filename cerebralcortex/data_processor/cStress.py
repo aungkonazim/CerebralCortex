@@ -125,7 +125,7 @@ def cStress(rdd: RDD) -> RDD:
 
     train_test_with_ground_truth = feature_vector_with_ground_truth.map(lambda ds: (ds[0], analyze_events_with_features(ds)))
 
-    train_test_with_ground_truth.collect()
+    print(train_test_with_ground_truth.collect())
     # feature_vector = features.map(lambda ds: (ds[0], assemble_feature_vector(rdds=ds[1])))
 
     # feature_vector.foreach(print_check)

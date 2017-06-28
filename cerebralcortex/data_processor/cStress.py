@@ -33,7 +33,7 @@ from cerebralcortex.data_processor.signalprocessing.dataquality import compute_o
 from cerebralcortex.data_processor.signalprocessing.dataquality import ecg_data_quality
 from cerebralcortex.data_processor.signalprocessing.dataquality import rip_data_quality
 from cerebralcortex.data_processor.signalprocessing.ecg import compute_rr_intervals
-from cerebralcortex.model_development.model_development import analyze_events_with_features
+from cerebralcortex.model_development.model_development import analyze_events_with_features1
 
 def fix_two_joins(nested_data):
     key = nested_data[0]
@@ -64,70 +64,71 @@ def print_check(s):
 
 def cStress(rdd: RDD) -> RDD:
     # TODO: TWH Temporary
-    ecg_sampling_frequency = 64.0
-    rip_sampling_frequency = 64.0
-    accel_sampling_frequency = 64.0 / 6.0
+    # ecg_sampling_frequency = 64.0
+    # rip_sampling_frequency = 64.0
+    # accel_sampling_frequency = 64.0 / 6.0
+    #
+    # # Timestamp correct datastreams
+    # ecg_corrected = rdd.map(lambda ds: (
+    #     ds['participant'], timestamp_correct(datastream=ds['ecg'], sampling_frequency=ecg_sampling_frequency)))
+    # rip_corrected = rdd.map(lambda ds: (
+    #     ds['participant'], timestamp_correct(datastream=ds['rip'], sampling_frequency=rip_sampling_frequency)))
+    #
+    # accelx_corrected = rdd.map(lambda ds: (
+    #     ds['participant'], timestamp_correct(datastream=ds['accelx'], sampling_frequency=accel_sampling_frequency)))
+    # accely_corrected = rdd.map(lambda ds: (
+    #     ds['participant'], timestamp_correct(datastream=ds['accely'], sampling_frequency=accel_sampling_frequency)))
+    # accelz_corrected = rdd.map(lambda ds: (
+    #     ds['participant'], timestamp_correct(datastream=ds['accelz'], sampling_frequency=accel_sampling_frequency)))
+    #
+    # ecg_quality = ecg_corrected.map(lambda ds: (ds[0], ecg_data_quality(ds[1])))
+    # rip_quality = rip_corrected.map(lambda ds: (ds[0], rip_data_quality(ds[1])))
+    #
+    #
+    #
+    # accel_group = accelx_corrected.join(accely_corrected).join(accelz_corrected).map(fix_two_joins)
+    # accel = accel_group.map(lambda ds: (ds[0], autosense_sequence_align(datastreams=[ds[1][0], ds[1][1], ds[1][2]],
+    #                                                                     sampling_frequency=accel_sampling_frequency)))
+    #
+    # # Accelerometer Feature Computation
+    # accel_features = accel.map(lambda ds: (ds[0], accelerometer_features(ds[1], window_length=10.0)))
+    #
+    # rip_corrected_and_quality = rip_corrected.join(rip_quality)
+    #
+    # # rip features
+    # peak_valley = rip_corrected_and_quality.map(
+    #     lambda ds: (ds[0], rip.compute_peak_valley(rip=ds[1][0], rip_quality=ds[1][1])))
+    #
+    # rip_features = peak_valley.map(lambda ds: (ds[0], rip_feature_computation(ds[1][0], ds[1][1])))
+    #
+    # ecg_corrected_and_quality = ecg_corrected.join(ecg_quality)
+    #
+    # # r-peak datastream computation
+    # ecg_rr_rdd = ecg_corrected_and_quality.map(lambda ds:
+    #                                            (ds[0], compute_rr_intervals(ecg=ds[1][0], ecg_quality=ds[1][1],
+    #                                                                         fs=ecg_sampling_frequency)))
+    #
+    # ecg_rr_quality = ecg_rr_rdd.map(lambda ds: (ds[0], compute_outlier_ecg(ds[1])))
+    #
+    # ecg_features = ecg_rr_rdd.map(lambda ds: (ds[0], ecg_feature_computation(ds[1], window_size=60, window_offset=60)))
+    #
+    # # computer cStress feature vector
+    # feature_vector = join_feature_vector(ecg_features, rip_features, accel_features)
+    #
+    # feature_vector_final = feature_vector.map(lambda ds:(ds[0],([ecg_f for ecg_f in ds[1][0][0]],
+    #                                                      [rip_f for rip_f in ds[1][0][1]],[accel_f for accel_f in ds[1][1]])))
+    #
 
-    # Timestamp correct datastreams
-    ecg_corrected = rdd.map(lambda ds: (
-        ds['participant'], timestamp_correct(datastream=ds['ecg'], sampling_frequency=ecg_sampling_frequency)))
-    rip_corrected = rdd.map(lambda ds: (
-        ds['participant'], timestamp_correct(datastream=ds['rip'], sampling_frequency=rip_sampling_frequency)))
+    feature_and_ground_truth = rdd.map(lambda ds:(ds['participant'],ds['stress_marks'],ds["feature"]))
 
-    accelx_corrected = rdd.map(lambda ds: (
-        ds['participant'], timestamp_correct(datastream=ds['accelx'], sampling_frequency=accel_sampling_frequency)))
-    accely_corrected = rdd.map(lambda ds: (
-        ds['participant'], timestamp_correct(datastream=ds['accely'], sampling_frequency=accel_sampling_frequency)))
-    accelz_corrected = rdd.map(lambda ds: (
-        ds['participant'], timestamp_correct(datastream=ds['accelz'], sampling_frequency=accel_sampling_frequency)))
+    # feature_vector_with_ground_truth = feature_vector_final.join(stress_ground_truth)
 
-    ecg_quality = ecg_corrected.map(lambda ds: (ds[0], ecg_data_quality(ds[1])))
-    rip_quality = rip_corrected.map(lambda ds: (ds[0], rip_data_quality(ds[1])))
+    train_test_with_ground_truth = feature_and_ground_truth.map(lambda ds: analyze_events_with_features1(ds[0],ds[1],ds[2]))
 
-
-
-    accel_group = accelx_corrected.join(accely_corrected).join(accelz_corrected).map(fix_two_joins)
-    accel = accel_group.map(lambda ds: (ds[0], autosense_sequence_align(datastreams=[ds[1][0], ds[1][1], ds[1][2]],
-                                                                        sampling_frequency=accel_sampling_frequency)))
-
-    # Accelerometer Feature Computation
-    accel_features = accel.map(lambda ds: (ds[0], accelerometer_features(ds[1], window_length=10.0)))
-
-    rip_corrected_and_quality = rip_corrected.join(rip_quality)
-
-    # rip features
-    peak_valley = rip_corrected_and_quality.map(
-        lambda ds: (ds[0], rip.compute_peak_valley(rip=ds[1][0], rip_quality=ds[1][1])))
-
-    rip_features = peak_valley.map(lambda ds: (ds[0], rip_feature_computation(ds[1][0], ds[1][1])))
-
-    ecg_corrected_and_quality = ecg_corrected.join(ecg_quality)
-
-    # r-peak datastream computation
-    ecg_rr_rdd = ecg_corrected_and_quality.map(lambda ds:
-                                               (ds[0], compute_rr_intervals(ecg=ds[1][0], ecg_quality=ds[1][1],
-                                                                            fs=ecg_sampling_frequency)))
-
-    ecg_rr_quality = ecg_rr_rdd.map(lambda ds: (ds[0], compute_outlier_ecg(ds[1])))
-
-    ecg_features = ecg_rr_rdd.map(lambda ds: (ds[0], ecg_feature_computation(ds[1], window_size=60, window_offset=60)))
-
-    # computer cStress feature vector
-    feature_vector = join_feature_vector(ecg_features, rip_features, accel_features)
-
-    feature_vector_final = feature_vector.map(lambda ds:(ds[0],([ecg_f for ecg_f in ds[1][0][0]],
-                                                         [rip_f for rip_f in ds[1][0][1]],[accel_f for accel_f in ds[1][1]])))
-
-
-    stress_ground_truth = rdd.map(lambda ds:(ds['participant'],ds['stress_marks']))
-
-    feature_vector_with_ground_truth = feature_vector_final.join(stress_ground_truth)
-
-    train_test_with_ground_truth = feature_vector_with_ground_truth.map(lambda ds: (ds[0], analyze_events_with_features(ds)))
-
-    print(train_test_with_ground_truth.collect())
     # feature_vector = features.map(lambda ds: (ds[0], assemble_feature_vector(rdds=ds[1])))
 
-    # feature_vector.foreach(print_check)
 
-    return feature_vector
+    # feature_vector.foreach(print_check)
+    print(train_test_with_ground_truth.collect())
+
+    return 1

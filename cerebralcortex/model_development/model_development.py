@@ -24,6 +24,8 @@
 import numpy as np
 from collections import Counter
 
+from datetime import datetime,timedelta
+import pytz
 
 def decode_label(label):
     label = label[:2]  # Only the first 2 characters designate the label code
@@ -32,11 +34,11 @@ def decode_label(label):
 
 
 def check_stress_mark(stress_mark, start_time):
-    endtime = start_time + 60  # One minute windows
+    endtime = start_time +  timedelta(seconds=60) # One minute windows
     result = []
     for dp in stress_mark:
-        st = dp.start_time.timestamp()
-        et = dp.end_time.timestamp()
+        st = dp.start_time
+        et = dp.end_time
         gt = dp.sample[0][:2]
         if gt not in ['c7']:
             if (start_time > st) and (endtime < et):
@@ -45,41 +47,78 @@ def check_stress_mark(stress_mark, start_time):
     return data.most_common(1)
 
 
-def analyze_events_with_features(features):
-    ecg_feature_stream_array = features[1][0][0]
-    rip_feature_stream_array = features[1][0][1]
-    accel_feature_stream_array = features[1][0][2]
-    final_feature_stream_array = ecg_feature_stream_array + rip_feature_stream_array + accel_feature_stream_array
+# def analyze_events_with_features(features):
+#     ecg_feature_stream_array = features[1][0][0]
+#     rip_feature_stream_array = features[1][0][1]
+#     accel_feature_stream_array = features[1][0][2]
+#     final_feature_stream_array = ecg_feature_stream_array + rip_feature_stream_array + accel_feature_stream_array
+#
+#     stress_ground_truth_stream = features[1][1]
+#     stress_marks = stress_ground_truth_stream.data
+#
+#     start_times = {}
+#
+#     for dp in stress_marks:
+#         if dp.sample[0][:2] == 'c4':
+#             if features[0] not in start_times:
+#                 start_times[features[0]] = np.inf
+#             start_times[features[0]] = min(start_times[features[0]], dp.start_time.timestamp())
+#     feature_matrix = [None]*len(final_feature_stream_array[0].data)
+#
+#     for i in range(len(final_feature_stream_array[0].data)):
+#         feature_matrix[i] = []
+#         for j in range(len(final_feature_stream_array[0:11])):
+#             feature_matrix[i].append(final_feature_stream_array[j].data[i].sample)
+#         feature_matrix[i] = (final_feature_stream_array[0].data[i].start_time.timestamp(), feature_matrix[i])
+#
+#     feature_labels = []
+#     final_features = []
+#     subjects = []
+#
+#     pid = features[0]
+#     for feature_vector in feature_matrix:
+#         ts = feature_vector[0]
+#         f = feature_vector[1]
+#         #
+#         # if ts < start_times[pid]:
+#         #     continue  # Outside of starting time
+#
+#         label = check_stress_mark(stress_marks, ts)
+#
+#         if len(label) > 0:
+#             stress_class = decode_label(label[0][0])
+#
+#             feature_labels.append(stress_class)
+#             final_features.append(f)
+#             subjects.append(pid)
+#
+#     return final_features, feature_labels, subjects
 
-    stress_ground_truth_stream = features[1][1]
-    stress_marks = stress_ground_truth_stream.data
+
+def analyze_events_with_features1(participant,stress_mark_stream,feature_stream):
+    stress_marks = stress_mark_stream.data
 
     start_times = {}
 
     for dp in stress_marks:
         if dp.sample[0][:2] == 'c4':
-            if features[0] not in start_times:
-                start_times[features[0]] = np.inf
-            start_times[features[0]] = min(start_times[features[0]], dp.start_time.timestamp())
-    feature_matrix = [None]*len(final_feature_stream_array[0].data)
-
-    for i in range(len(final_feature_stream_array[0].data)):
-        feature_matrix[i] = []
-        for j in range(len(final_feature_stream_array[0:11])):
-            feature_matrix[i].append(final_feature_stream_array[j].data[i].sample)
-        feature_matrix[i] = (final_feature_stream_array[0].data[i].start_time.timestamp(), feature_matrix[i])
+            if participant not in start_times:
+                start_times[participant] = datetime.utcnow().replace(tzinfo=pytz.UTC)
+            if dp.start_time < start_times[participant]:
+                start_times[participant] = dp.start_time
+    feature_matrix = feature_stream.data
 
     feature_labels = []
     final_features = []
     subjects = []
 
-    pid = features[0]
+
     for feature_vector in feature_matrix:
-        ts = feature_vector[0]
-        f = feature_vector[1]
-        #
-        # if ts < start_times[pid]:
-        #     continue  # Outside of starting time
+        ts = feature_vector.start_time
+        f = feature_vector.sample
+
+        if ts < start_times[participant]:
+            continue  # Outside of starting time
 
         label = check_stress_mark(stress_marks, ts)
 
@@ -88,7 +127,8 @@ def analyze_events_with_features(features):
 
             feature_labels.append(stress_class)
             final_features.append(f)
-            subjects.append(pid)
-
+            subjects.append(participant)
+            
     return final_features, feature_labels, subjects
+
 

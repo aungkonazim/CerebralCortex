@@ -36,6 +36,9 @@ from cerebralcortex.data_processor.preprocessor import parser
 from cerebralcortex.kernel.datatypes.datapoint import DataPoint
 from cerebralcortex.kernel.datatypes.datastream import DataStream
 from cerebralcortex.legacy import find
+from pyspark import SparkContext
+
+
 
 argparser = argparse.ArgumentParser(description="Cerebral Cortex Test Application")
 argparser.add_argument('--base_directory')
@@ -47,7 +50,7 @@ basedir = args.base_directory
 
 configuration_file = os.path.join(os.path.dirname(__file__), 'cerebralcortex.yml')
 
-CC = CerebralCortex(configuration_file, master="local[*]", name="Memphis cStress Development App")
+# CC = CerebralCortex(configuration_file, master="local[*]", name="Memphis cStress Development App")
 
 
 def readfile(filename):
@@ -76,6 +79,32 @@ def readfile_ground_truth(filename):
                 break
     return data
 
+def readfile_ground_truth(filename):
+    data = []
+    with gzip.open(filename, 'rt') as f:
+        count = 0
+        for l in f:
+            dp = parser.ground_truth_data_processor(l)
+            if isinstance(dp, DataPoint):
+                data.append(dp)
+                count += 1
+            if count > 20000:
+                break
+    return data
+
+def readfile_feature(filename):
+    data = []
+    with open(filename, 'rt') as f:
+        count = 0
+        for l in f:
+            dp = parser.feature_vector_data_processor(l)
+            if isinstance(dp, DataPoint):
+                data.append(dp)
+                count += 1
+    return data
+
+
+
 def loader(identifier: int):
     participant = "SI%02d" % identifier
 
@@ -83,25 +112,28 @@ def loader(identifier: int):
 
     try:
         ecg = DataStream(None, participant_uuid)
-        ecg.data = readfile(find(basedir, {"participant": participant, "datasource": "ecg"}))
+        ecg.data = readfile(basedir+"\\"+participant+"\\"+"ecg.txt.gz")
 
         rip = DataStream(None, participant_uuid)
-        rip.data = readfile(find(basedir, {"participant": participant, "datasource": "rip"}))
+        rip.data = readfile(basedir+"\\"+participant+"\\"+"rip.txt.gz")
 
         accelx = DataStream(None, participant_uuid)
-        accelx.data = readfile(find(basedir, {"participant": participant, "datasource": "accelx"}))
+        accelx.data = readfile(basedir+"\\"+participant+"\\"+"accelx.txt.gz")
 
         accely = DataStream(None, participant_uuid)
-        accely.data = readfile(find(basedir, {"participant": participant, "datasource": "accely"}))
+        accely.data = readfile(basedir+"\\"+participant+"\\"+"accely.txt.gz")
 
         accelz = DataStream(None, participant_uuid)
-        accelz.data = readfile(find(basedir, {"participant": participant, "datasource": "accelz"}))
+        accelz.data = readfile(basedir+"\\"+participant+"\\"+"accelz.txt.gz")
 
         stress_marks = DataStream(None, participant_uuid)
-        stress_marks.data = readfile_ground_truth(find(basedir, {"participant": participant, "datasource": "stress_marks"}))
+        stress_marks.data = readfile_ground_truth(basedir+"\\"+participant+"\\"+"stress_marks.txt.gz")
+
+        feature = DataStream(None, participant_uuid)
+        feature.data = readfile_feature("C:\\Users\\aungkon\\Desktop\\Cstress_data\\"+participant+"\\"+"org.md2k.cstress.fv.csv")
 
         return {"participant": participant, "ecg": ecg, "rip": rip, "accelx": accelx, "accely": accely,
-                "accelz": accelz, "stress_marks": stress_marks}
+                "accelz": accelz, "stress_marks": stress_marks, "feature" : feature}
 
     except Exception as e:
         print("File missing for %s" % participant)
@@ -112,9 +144,11 @@ def loader(identifier: int):
 
 
 start_time = time.time()
-ids = CC.sparkSession.sparkContext.parallelize([i for i in range(7, 8)])
 
-data = ids.map(lambda i: loader(i)).filter(lambda x: 'participant' in x)
+sc = SparkContext("local", "Simple App")
+ids = sc.parallelize([i for i in range(1,2)])
+
+data = ids.map(lambda i: loader(i)).filter(lambda ds: "participant" in ds)
 
 cstress_feature_vector = cStress(data)
 

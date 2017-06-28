@@ -49,3 +49,15 @@ def ground_truth_data_processor(input_string):
 
     except ValueError:
         return
+
+
+
+def feature_vector_data_processor(input_string):
+    try:
+        elements = [x.strip() for x in input_string.split(',')]
+        start_timestamp = datetime.fromtimestamp(float(elements[0]) / 1000.0, pytz.timezone('US/Central'))
+        features = [i for i in elements[1:]]
+        return DataPoint.from_tuple(start_time=start_timestamp, sample=features)
+
+    except ValueError:
+        return

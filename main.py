@@ -96,13 +96,13 @@ def loader(identifier: int):
 
 
 start_time = time.time()
-ids = CC.sparkSession.sparkContext.parallelize([i for i in range(1,2)])
+ids = CC.sparkSession.sparkContext.parallelize([i for i in range(3, 4)])
 
 data = ids.map(lambda i: loader(i)).filter(lambda x: 'participant' in x)
 
 cstress_feature_vector = cStress(data)
 
-# pprint(cstress_feature_vector.collect())
+pprint(cstress_feature_vector.collect())
 
 
 # results = ids.map(loader)

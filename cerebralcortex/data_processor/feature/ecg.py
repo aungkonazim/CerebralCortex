@@ -77,17 +77,20 @@ def check_ecg_rr_window_quality(quality_datastream_data:List[DataPoint],
     Renders a boolean decision if the window is usable for feature processing or not.
 
     """
+    quality_datastream_data_reformed = quality_datastream_data
     acceptable_seconds = 0
     for dp in quality_datastream_data:
         if dp.start_time >= starttime and dp.end_time <= endtime and dp.sample == Quality.ACCEPTABLE:
             acceptable_seconds += (dp.end_time-dp.start_time).total_seconds()
         elif starttime <= dp.start_time <= endtime and dp.end_time > endtime and dp.sample == Quality.ACCEPTABLE:
             acceptable_seconds += (endtime-dp.start_time).total_seconds()
-        elif dp.start_time > endtime:
+        if dp.end_time <= starttime:
+            quality_datastream_data_reformed.remove(dp)
+        if dp.start_time > endtime:
             break
     if acceptable_seconds/window_size >= .66:
-        return True
-    return False
+        return True, quality_datastream_data_reformed
+    return False, quality_datastream_data_reformed
 
 
 
@@ -153,11 +156,13 @@ def ecg_feature_computation(datastream: DataStream,
 
     # iterate over each window and calculate features
 
+    quality_datastream_data = quality_datastream.data
+
     for key, value in window_data.items():
 
         starttime, endtime = key
 
-        window_quality = check_ecg_rr_window_quality(quality_datastream_data=quality_datastream.data, window_size=window_size,
+        window_quality, quality_datastream_data = check_ecg_rr_window_quality(quality_datastream_data=quality_datastream_data, window_size=window_size,
                                                      starttime=starttime, endtime=endtime)
         if window_quality:
             reference_data = np.array([i.sample for i in value])

@@ -98,9 +98,9 @@ def cStress(rdd: RDD) -> RDD:
 
     rip_cycle_features = peak_valley.map(lambda ds: (ds[0], rip_feature_computation(ds[1][0])))
 
-    # windowed_rip_features = rip_cycle_features.map(lambda ds: (ds[0], window_rip(inspiration_duration=ds[1][0],
-    #                                                                              expiration_duration=ds[1][1],                                                                                 ...,
-    #                                                                              window_size=60)))
+    windowed_rip_features = rip_cycle_features.map(lambda ds: (ds[0], window_rip(inspiration_duration=ds[1][0],
+                                                                                 expiration_duration=ds[1][1],                                                                                 ...,
+                                                                                 window_size=60)))
 
 
     ecg_corrected_and_quality = ecg_corrected.join(ecg_quality)
@@ -132,4 +132,3 @@ def cStress(rdd: RDD) -> RDD:
         lambda ds: (ds[0], generate_cStress_feature_vector(accel=ds[1][0], ecg=ds[1][1], rip=ds[1][2], rsa=ds[1][3])))
 
     return feature_vector_ecg_rip  # Data stream with data points (ST, ET, [...37 values...])
-    

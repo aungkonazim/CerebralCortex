@@ -71,7 +71,8 @@ def heart_rate_power(power: np.ndarray,
 def check_ecg_rr_window_quality(quality_datastream_data:List[DataPoint],
                                 window_size: float,
                                 starttime: datetime,
-                                endtime: datetime):
+                                endtime: datetime,
+                                acceptable_ratio: float = .66):
     """
     Calculates the quality of RR interval in between the start time and end time of a window.
     Renders a boolean decision if the window is usable for feature processing or not.
@@ -80,15 +81,17 @@ def check_ecg_rr_window_quality(quality_datastream_data:List[DataPoint],
     quality_datastream_data_reformed = quality_datastream_data
     acceptable_seconds = 0
     for dp in quality_datastream_data:
+
         if dp.start_time >= starttime and dp.end_time <= endtime and dp.sample == Quality.ACCEPTABLE:
             acceptable_seconds += (dp.end_time-dp.start_time).total_seconds()
         elif starttime <= dp.start_time <= endtime and dp.end_time > endtime and dp.sample == Quality.ACCEPTABLE:
             acceptable_seconds += (endtime-dp.start_time).total_seconds()
+
         if dp.end_time <= starttime:
             quality_datastream_data_reformed.remove(dp)
         if dp.start_time > endtime:
             break
-    if acceptable_seconds/window_size >= .66:
+    if acceptable_seconds/window_size >= acceptable_ratio:
         return True, quality_datastream_data_reformed
     return False, quality_datastream_data_reformed
 

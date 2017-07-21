@@ -132,4 +132,3 @@ def cStress(rdd: RDD) -> RDD:
         lambda ds: (ds[0], generate_cStress_feature_vector(accel=ds[1][0], ecg=ds[1][1], rip=ds[1][2], rsa=ds[1][3])))
 
     return feature_vector_ecg_rip  # Data stream with data points (ST, ET, [...37 values...])
-    

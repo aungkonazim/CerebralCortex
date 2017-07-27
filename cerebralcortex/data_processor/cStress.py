@@ -34,6 +34,7 @@ from cerebralcortex.data_processor.signalprocessing.dataquality import compute_o
 from cerebralcortex.data_processor.signalprocessing.dataquality import ecg_data_quality
 from cerebralcortex.data_processor.signalprocessing.dataquality import rip_data_quality
 from cerebralcortex.data_processor.signalprocessing.ecg import compute_rr_intervals
+from cerebralcortex.model_development.model_development import analyze_events_with_features
 
 
 def fix_two_joins(nested_data):
@@ -133,5 +134,9 @@ def cStress(rdd: RDD) -> RDD:
     stress_ground_truth = rdd.map(lambda ds:(ds['participant'],ds['stress_marks']))
 
     feature_vector_with_ground_truth = feature_vector_ecg_rip.join(stress_ground_truth)
-    print(feature_vector_with_ground_truth.collect())
+
+    train_test_with_ground_truth_and_subjects = feature_vector_with_ground_truth.map(lambda ds: analyze_events_with_features(participant=ds[0],stress_mark_stream=ds[1][1],feature_stream=ds[1][0]))
+
+    print(train_test_with_ground_truth_and_subjects.collect())
+
     return feature_vector_ecg_rip  # Data stream with data points (ST, ET, [...37 values...])

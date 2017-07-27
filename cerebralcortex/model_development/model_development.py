@@ -21,11 +21,46 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-import numpy as np
-from collections import Counter
 
 from datetime import datetime,timedelta
 import pytz
+
+import json
+import numpy as np
+from collections import Counter
+from collections import Sized
+from pathlib import Path
+from pprint import pprint
+from sklearn import svm, metrics, preprocessing
+from sklearn.base import clone, is_classifier
+from sklearn.cross_validation import LabelKFold
+from sklearn.cross_validation import check_cv
+from sklearn.externals.joblib import Parallel, delayed
+from sklearn.grid_search import GridSearchCV, RandomizedSearchCV, ParameterSampler, ParameterGrid
+from sklearn.utils.validation import _num_samples, indexable
+from spark_sklearn import GridSearchCV
+
+def model_building(sc,traindata,trainlabels,subjects):
+    traindata = np.asarray(traindata, dtype=np.float64)
+    trainlabels = np.asarray(trainlabels)
+
+    normalizer = preprocessing.StandardScaler()
+    traindata = normalizer.fit_transform(traindata)
+
+    lkf = LabelKFold(subjects, n_folds=len(np.unique(subjects)))
+
+    delta = 0.1
+    parameters = {'kernel': ['rbf'],
+                  'C': [2 ** x for x in np.arange(-12, 12, 0.5)],
+                  'gamma': [2 ** x for x in np.arange(-12, 12, 0.5)],
+                  'class_weight': [{0: w, 1: 1 - w} for w in np.arange(0.0, 1.0, delta)]}
+
+    svc = svm.SVC(probability=True, verbose=False, cache_size=2000)
+    clf = GridSearchCV(sc=sc,estimator=svc, param_grid=parameters,n_jobs=4,cv=lkf)
+    clf.fit(traindata, trainlabels)
+
+    pprint(clf.best_params_)
+
 
 def decode_label(label):
     label = label[:2]  # Only the first 2 characters designate the label code
@@ -47,55 +82,7 @@ def check_stress_mark(stress_mark, start_time):
     return data.most_common(1)
 
 
-# def analyze_events_with_features(features):
-#     ecg_feature_stream_array = features[1][0][0]
-#     rip_feature_stream_array = features[1][0][1]
-#     accel_feature_stream_array = features[1][0][2]
-#     final_feature_stream_array = ecg_feature_stream_array + rip_feature_stream_array + accel_feature_stream_array
-#
-#     stress_ground_truth_stream = features[1][1]
-#     stress_marks = stress_ground_truth_stream.data
-#
-#     start_times = {}
-#
-#     for dp in stress_marks:
-#         if dp.sample[0][:2] == 'c4':
-#             if features[0] not in start_times:
-#                 start_times[features[0]] = np.inf
-#             start_times[features[0]] = min(start_times[features[0]], dp.start_time.timestamp())
-#     feature_matrix = [None]*len(final_feature_stream_array[0].data)
-#
-#     for i in range(len(final_feature_stream_array[0].data)):
-#         feature_matrix[i] = []
-#         for j in range(len(final_feature_stream_array[0:11])):
-#             feature_matrix[i].append(final_feature_stream_array[j].data[i].sample)
-#         feature_matrix[i] = (final_feature_stream_array[0].data[i].start_time.timestamp(), feature_matrix[i])
-#
-#     feature_labels = []
-#     final_features = []
-#     subjects = []
-#
-#     pid = features[0]
-#     for feature_vector in feature_matrix:
-#         ts = feature_vector[0]
-#         f = feature_vector[1]
-#         #
-#         # if ts < start_times[pid]:
-#         #     continue  # Outside of starting time
-#
-#         label = check_stress_mark(stress_marks, ts)
-#
-#         if len(label) > 0:
-#             stress_class = decode_label(label[0][0])
-#
-#             feature_labels.append(stress_class)
-#             final_features.append(f)
-#             subjects.append(pid)
-#
-#     return final_features, feature_labels, subjects
-
-
-def analyze_events_with_features1(participant,stress_mark_stream,feature_stream):
+def analyze_events_with_features(participant,stress_mark_stream,feature_stream):
     stress_marks = stress_mark_stream.data
 
     start_times = {}
@@ -128,7 +115,13 @@ def analyze_events_with_features1(participant,stress_mark_stream,feature_stream)
             feature_labels.append(stress_class)
             final_features.append(f)
             subjects.append(participant)
-            
+
     return final_features, feature_labels, subjects
+
+
+
+
+
+
 
 

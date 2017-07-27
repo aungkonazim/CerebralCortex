@@ -146,11 +146,11 @@ def loader(identifier: int):
 start_time = time.time()
 
 sc = SparkContext("local", "Simple App")
-ids = sc.parallelize([i for i in range(1,2)])
+ids = sc.parallelize([i for i in range(1,4)])
 
 data = ids.map(lambda i: loader(i)).filter(lambda ds: "participant" in ds)
 
-cstress_feature_vector = cStress(data)
+cstress_feature_vector = cStress(data,sc)
 
 # pprint(cstress_feature_vector.collect())
 

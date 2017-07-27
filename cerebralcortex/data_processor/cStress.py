@@ -33,7 +33,10 @@ from cerebralcortex.data_processor.signalprocessing.dataquality import compute_o
 from cerebralcortex.data_processor.signalprocessing.dataquality import ecg_data_quality
 from cerebralcortex.data_processor.signalprocessing.dataquality import rip_data_quality
 from cerebralcortex.data_processor.signalprocessing.ecg import compute_rr_intervals
-from cerebralcortex.model_development.model_development import analyze_events_with_features1
+from cerebralcortex.model_development.model_development import analyze_events_with_features
+from cerebralcortex.model_development.model_development import model_building
+from pyspark import SparkContext
+import pickle
 
 def fix_two_joins(nested_data):
     key = nested_data[0]
@@ -62,7 +65,7 @@ def print_check(s):
     print(len(s[1][0][1]))
     print(len(s[1][1]))
 
-def cStress(rdd: RDD) -> RDD:
+def cStress(rdd: RDD,sc) -> RDD:
     # TODO: TWH Temporary
     # ecg_sampling_frequency = 64.0
     # rip_sampling_frequency = 64.0
@@ -123,12 +126,26 @@ def cStress(rdd: RDD) -> RDD:
 
     # feature_vector_with_ground_truth = feature_vector_final.join(stress_ground_truth)
 
-    train_test_with_ground_truth = feature_and_ground_truth.map(lambda ds: analyze_events_with_features1(ds[0],ds[1],ds[2]))
+    train_test_with_ground_truth = feature_and_ground_truth.map(lambda ds: analyze_events_with_features(ds[0],ds[1],ds[2]))
 
     # feature_vector = features.map(lambda ds: (ds[0], assemble_feature_vector(rdds=ds[1])))
 
 
     # feature_vector.foreach(print_check)
-    print(train_test_with_ground_truth.collect())
+    features = train_test_with_ground_truth.collect()
+
+    traindata = []
+    trainlabels = []
+    subjects = []
+    for participant in features:
+        traindata.extend(participant[0])
+        trainlabels.extend(participant[1])
+        subjects.extend(participant[2])
+    sc.stop()
+    pickle.dump(traindata, open( "traindata.p", "wb" ) )
+    pickle.dump(trainlabels, open( "trainlabels.p", "wb" ) )
+    pickle.dump(subjects, open( "subjects.p", "wb" ) )
+    # sc1 = SparkContext("local", "Simple App")
+    # cstress_model = model_building(sc1,traindata,trainlabels,subjects)
 
     return 1

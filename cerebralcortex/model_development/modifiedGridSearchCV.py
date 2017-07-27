@@ -1,0 +1,95 @@
+# Copyright (c) 2017, MD2K Center of Excellence
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+from collections import Sized
+from sklearn.base import clone, is_classifier
+from sklearn.cross_validation import check_cv
+from sklearn.externals.joblib import Parallel, delayed
+from sklearn.grid_search import GridSearchCV, ParameterGrid
+from sklearn.utils.validation import _num_samples, indexable
+from cerebralcortex.model_development.model_development import cv_fit_and_score
+
+
+class ModifiedGridSearchCV(GridSearchCV):
+    def __init__(self, estimator, param_grid, scoring=None, fit_params=None,
+                 n_jobs=1, iid=True, refit=True, cv=None, verbose=0,
+                 pre_dispatch='2*n_jobs', error_score='raise'):
+
+        super(ModifiedGridSearchCV, self).__init__(
+            estimator, param_grid, scoring, fit_params, n_jobs, iid,
+            refit, cv, verbose, pre_dispatch, error_score)
+
+    def fit(self, X, y):
+        """Actual fitting,  performing the search over parameters."""
+
+        parameter_iterable = ParameterGrid(self.param_grid)
+
+        estimator = self.estimator
+        cv = self.cv
+
+        n_samples = _num_samples(X)
+        X, y = indexable(X, y)
+
+        if y is not None:
+            if len(y) != n_samples:
+                raise ValueError('Target variable (y) has a different number '
+                                 'of samples (%i) than data (X: %i samples)'
+                                 % (len(y), n_samples))
+        cv = check_cv(cv, X, y, classifier=is_classifier(estimator))
+
+        if self.verbose > 0:
+            if isinstance(parameter_iterable, Sized):
+                n_candidates = len(parameter_iterable)
+                print("Fitting {0} folds for each of {1} candidates, totalling"
+                      " {2} fits".format(len(cv), n_candidates,
+                                         n_candidates * len(cv)))
+
+        base_estimator = clone(self.estimator)
+
+        pre_dispatch = self.pre_dispatch
+
+        out = Parallel(
+            n_jobs=self.n_jobs, verbose=self.verbose,
+            pre_dispatch=pre_dispatch
+        )(delayed(cv_fit_and_score)(clone(base_estimator), X, y, self.scoring,
+                                      parameters, cv=cv)
+            for parameters in parameter_iterable)
+
+        best = sorted(out, reverse=True)[0]
+        self.best_params_ = best[1]
+        self.best_score_ = best[0]
+
+        if self.refit:
+            # fit the best estimator using the entire dataset
+            # clone first to work around broken estimators
+            best_estimator = clone(base_estimator).set_params(
+                **best[1])
+            if y is not None:
+                best_estimator.fit(X, y, **self.fit_params)
+            else:
+                best_estimator.fit(X, **self.fit_params)
+            self.best_estimator_ = best_estimator
+
+        return self

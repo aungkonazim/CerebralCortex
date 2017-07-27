@@ -135,8 +135,7 @@ def cStress(rdd: RDD) -> RDD:
 
     feature_vector_with_ground_truth = feature_vector_ecg_rip.join(stress_ground_truth)
 
-    train_test_with_ground_truth_and_subjects = feature_vector_with_ground_truth.map(lambda ds: analyze_events_with_features(participant=ds[0],stress_mark_stream=ds[1][1],feature_stream=ds[1][0]))
+    train_data_with_ground_truth_and_subjects = feature_vector_with_ground_truth.map(lambda ds: analyze_events_with_features(participant=ds[0],stress_mark_stream=ds[1][1],feature_stream=ds[1][0]))
 
-    print(train_test_with_ground_truth_and_subjects.collect())
 
-    return feature_vector_ecg_rip  # Data stream with data points (ST, ET, [...37 values...])
+    return train_data_with_ground_truth_and_subjects  # Data stream with data points (ST, ET, [...37 values...])

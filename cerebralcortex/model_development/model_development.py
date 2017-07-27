@@ -25,7 +25,7 @@
 from datetime import datetime,timedelta
 import pytz
 
-import json
+
 import numpy as np
 from collections import Counter
 from collections import Sized
@@ -38,6 +38,9 @@ from sklearn.cross_validation import check_cv
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV, ParameterSampler, ParameterGrid
 from sklearn.utils.validation import _num_samples, indexable
+from cerebralcortex.model_development.modifiedGridSearchCV import ModifiedGridSearchCV
+from cerebralcortex.model_development.modifiedRandomizedSearchCV import ModifiedRandomizedSearchCV
+from cerebralcortex.model_development.saveModel import saveModel
 # from spark_sklearn import GridSearchCV
 
 def model_building(sc,traindata,trainlabels,subjects):
@@ -118,9 +121,204 @@ def analyze_events_with_features(participant,stress_mark_stream,feature_stream):
 
     return final_features, feature_labels, subjects
 
+def cross_val_probs(estimator, X, y, cv):
+    probs = np.zeros(len(y))
+
+    for train, test in cv:
+        temp = estimator.fit(X[train], y[train]).predict_proba(X[test])
+        probs[test] = temp[:, 1]
+
+    return probs
 
 
 
+def cv_fit_and_score(estimator, X, y, scorer, parameters, cv, ):
+    """Fit estimator and compute scores for a given dataset split.
+    Parameters
+    ----------
+    estimator : estimator object implementing 'fit'
+        The object to use to fit the data.
+    X : array-like of shape at least 2D
+        The data to fit.
+    y : array-like, optional, default: None
+        The target variable to try to predict in the case of
+        supervised learning.
+    scorer : callable
+        A scorer callable object / function with signature
+        ``scorer(estimator, X, y)``.
+    parameters : dict or None
+        Parameters to be set on the estimator.
+    cv:	Cross-validation fold indeces
+    Returns
+    -------
+    score : float
+        CV score on whole set.
+    parameters : dict or None, optional
+        The parameters that have been evaluated.
+    """
+    estimator.set_params(**parameters)
+    cv_probs_ = cross_val_probs(estimator, X, y, cv)
+    score = scorer(cv_probs_, y)
+
+    return [score, parameters]
+
+
+def feature_label_separator(features:list):
+    """
+
+    :param features: Nested List containing three individual lists = feature vectors, labels and Subject ID
+    :return: separated lists
+    """
+    traindata = []
+    trainlabels = []
+    subjects = []
+    for feature_list in features:
+        traindata.extend(feature_list[0])
+        trainlabels.extend(feature_list[1])
+        subjects.extend(feature_list[2])
+
+    return traindata, trainlabels, subjects
+
+def Twobias_scorer_CV(probs, y, ret_bias=False):
+    db = np.transpose(np.vstack([probs, y]))
+    db = db[np.argsort(db[:, 0]), :]
+
+    pos = np.sum(y == 1)
+    n = len(y)
+    neg = n - pos
+    tp, tn = pos, 0
+    lost = 0
+
+    optbias = []
+    minloss = 1
+
+    for i in range(n):
+        #		p = db[i,1]
+        if db[i, 1] == 1:  # positive
+            tp -= 1.0
+        else:
+            tn += 1.0
+
+        # v1 = tp/pos
+        #		v2 = tn/neg
+        if tp / pos >= 0.95 and tn / neg >= 0.95:
+            optbias = [db[i, 0], db[i, 0]]
+            continue
+
+        running_pos = pos
+        running_neg = neg
+        running_tp = tp
+        running_tn = tn
+
+        for j in range(i + 1, n):
+            #			p1 = db[j,1]
+            if db[j, 1] == 1:  # positive
+                running_tp -= 1.0
+                running_pos -= 1
+            else:
+                running_neg -= 1
+
+            lost = (j - i) * 1.0 / n
+            if running_pos == 0 or running_neg == 0:
+                break
+
+            # v1 = running_tp/running_pos
+            #			v2 = running_tn/running_neg
+
+            if running_tp / running_pos >= 0.95 and running_tn / running_neg >= 0.95 and lost < minloss:
+                minloss = lost
+                optbias = [db[i, 0], db[j, 0]]
+
+    if ret_bias:
+        return -minloss, optbias
+    else:
+        return -minloss
+
+
+def f1Bias_scorer_CV(probs, y, ret_bias=False):
+    precision, recall, thresholds = metrics.precision_recall_curve(y, probs)
+
+    f1 = 0.0
+    for i in range(0, len(thresholds)):
+        if not (precision[i] == 0 and recall[i] == 0):
+            f = 2 * (precision[i] * recall[i]) / (precision[i] + recall[i])
+            if f > f1:
+                f1 = f
+                bias = thresholds[i]
+
+    if ret_bias:
+        return f1, bias
+    else:
+        return f1
+
+
+def cstress_model(features:list,
+                  n_iter:int=200,
+                  scorer:str='f1',
+                  searchtype: str='grid',
+                  outputfilename:str='output.txt'):
+    """
+
+    :param features: Nested List containing three individual lists = feature vectors, labels and Subject ID
+    :param scorer:
+    :return: returns the cStress Model
+    """
+    traindata, trainlabels, subjects = feature_label_separator(features)
+
+    traindata = np.asarray(traindata, dtype=np.float64)
+    trainlabels = np.asarray(trainlabels)
+
+    normalizer = preprocessing.StandardScaler()
+    traindata = normalizer.fit_transform(traindata)
+
+    lkf = LabelKFold(subjects, n_folds=len(np.unique(subjects)))
+
+    delta = 0.1
+    parameters = {'kernel': ['rbf'],
+                  'C': [2 ** x for x in np.arange(-12, 12, 0.5)],
+                  'gamma': [2 ** x for x in np.arange(-12, 12, 0.5)],
+                  'class_weight': [{0: w, 1: 1 - w} for w in np.arange(0.0, 1.0, delta)]}
+
+    svc = svm.SVC(probability=True, verbose=False, cache_size=2000)
+
+    if scorer == 'f1':
+        scorer = f1Bias_scorer_CV
+    else:
+        scorer = Twobias_scorer_CV
+
+    if searchtype == 'grid':
+        clf = ModifiedGridSearchCV(svc, parameters, cv=lkf, n_jobs=-1, scoring=scorer, verbose=1, iid=False)
+    else:
+        clf = ModifiedRandomizedSearchCV(estimator=svc, param_distributions=parameters, cv=lkf, n_jobs=-1,
+                                         scoring=scorer, n_iter=n_iter,
+                                         verbose=1, iid=False)
+
+    clf.fit(traindata, trainlabels)
+    pprint(clf.best_params_)
+
+    CV_probs = cross_val_probs(clf.best_estimator_, traindata, trainlabels, lkf)
+    score, bias = scorer(CV_probs, trainlabels, True)
+    print(score, bias)
+    if not bias == []:
+        saveModel(outputfilename, clf.best_estimator_, normalizer, bias)
+
+        n = len(trainlabels)
+
+        if scorer == 'f1':
+            predicted = np.asarray(CV_probs >= bias, dtype=np.int)
+            classified = range(n)
+        else:
+            classified = np.where(np.logical_or(CV_probs <= bias[0], CV_probs >= bias[1]))[0]
+            predicted = np.asarray(CV_probs[classified] >= bias[1], dtype=np.int)
+
+        print("Cross-Subject (" + str(len(np.unique(subjects))) + "-fold) Validation Prediction")
+        print("Accuracy: " + str(metrics.accuracy_score(trainlabels[classified], predicted)))
+        print(metrics.classification_report(trainlabels[classified], predicted))
+        print(metrics.confusion_matrix(trainlabels[classified], predicted))
+        print("Lost: %d (%f%%)" % (n - len(classified), (n - len(classified)) * 1.0 / n))
+        print("Subjects: " + str(np.unique(subjects)))
+    else:
+        print ("Results not good")
 
 
 

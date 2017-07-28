@@ -21,14 +21,54 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+import numpy as np
 from collections import Sized
 from sklearn.base import clone, is_classifier
 from sklearn.cross_validation import check_cv
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.grid_search import  RandomizedSearchCV, ParameterSampler
 from sklearn.utils.validation import _num_samples, indexable
-from cerebralcortex.model_development.model_development import cv_fit_and_score
+
+def cross_val_probs(estimator, X, y, cv):
+    probs = np.zeros(len(y))
+
+    for train, test in cv:
+        temp = estimator.fit(X[train], y[train]).predict_proba(X[test])
+        probs[test] = temp[:, 1]
+
+    return probs
+
+
+
+def cv_fit_and_score(estimator, X, y, scorer, parameters, cv):
+    """Fit estimator and compute scores for a given dataset split.
+    Parameters
+    ----------
+    estimator : estimator object implementing 'fit'
+        The object to use to fit the data.
+    X : array-like of shape at least 2D
+        The data to fit.
+    y : array-like, optional, default: None
+        The target variable to try to predict in the case of
+        supervised learning.
+    scorer : callable
+        A scorer callable object / function with signature
+        ``scorer(estimator, X, y)``.
+    parameters : dict or None
+        Parameters to be set on the estimator.
+    cv:	Cross-validation fold indeces
+    Returns
+    -------
+    score : float
+        CV score on whole set.
+    parameters : dict or None, optional
+        The parameters that have been evaluated.
+    """
+    estimator.set_params(**parameters)
+    cv_probs_ = cross_val_probs(estimator, X, y, cv)
+    score = scorer(cv_probs_, y)
+
+    return [score, parameters]
 
 
 class ModifiedRandomizedSearchCV(RandomizedSearchCV):

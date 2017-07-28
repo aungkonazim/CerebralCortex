@@ -26,16 +26,17 @@ import argparse
 import gzip
 import time
 import uuid
-from pprint import pprint
+
 
 import os
-
+import copy
 from cerebralcortex.CerebralCortex import CerebralCortex
 from cerebralcortex.data_processor.cStress import cStress
 from cerebralcortex.data_processor.preprocessor import parser
 from cerebralcortex.kernel.datatypes.datapoint import DataPoint
 from cerebralcortex.kernel.datatypes.datastream import DataStream
 from cerebralcortex.legacy import find
+from cerebralcortex.model_development.model_development import cstress_model
 
 argparser = argparse.ArgumentParser(description="Cerebral Cortex Test Application")
 argparser.add_argument('--base_directory')
@@ -59,7 +60,7 @@ def readfile(filename):
             if isinstance(dp, DataPoint):
                 data.append(dp)
                 count += 1
-            if count > 100000:
+            if count > 200000:
                 break
     return data
 
@@ -118,7 +119,9 @@ cstress_feature_vector = cStress(data)
 
 features = cstress_feature_vector.collect()
 
-cstress_model = cstress_model(features=features)
+features1 = copy.deepcopy(features)
+
+cstress_model = cstress_model(features=features1)
 
 # results = ids.map(loader)
 # pprint(results.collect())

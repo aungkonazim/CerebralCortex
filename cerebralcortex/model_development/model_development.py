@@ -121,47 +121,6 @@ def analyze_events_with_features(participant,stress_mark_stream,feature_stream):
 
     return final_features, feature_labels, subjects
 
-def cross_val_probs(estimator, X, y, cv):
-    probs = np.zeros(len(y))
-
-    for train, test in cv:
-        temp = estimator.fit(X[train], y[train]).predict_proba(X[test])
-        probs[test] = temp[:, 1]
-
-    return probs
-
-
-
-def cv_fit_and_score(estimator, X, y, scorer, parameters, cv, ):
-    """Fit estimator and compute scores for a given dataset split.
-    Parameters
-    ----------
-    estimator : estimator object implementing 'fit'
-        The object to use to fit the data.
-    X : array-like of shape at least 2D
-        The data to fit.
-    y : array-like, optional, default: None
-        The target variable to try to predict in the case of
-        supervised learning.
-    scorer : callable
-        A scorer callable object / function with signature
-        ``scorer(estimator, X, y)``.
-    parameters : dict or None
-        Parameters to be set on the estimator.
-    cv:	Cross-validation fold indeces
-    Returns
-    -------
-    score : float
-        CV score on whole set.
-    parameters : dict or None, optional
-        The parameters that have been evaluated.
-    """
-    estimator.set_params(**parameters)
-    cv_probs_ = cross_val_probs(estimator, X, y, cv)
-    score = scorer(cv_probs_, y)
-
-    return [score, parameters]
-
 
 def feature_label_separator(features:list):
     """
@@ -253,7 +212,7 @@ def f1Bias_scorer_CV(probs, y, ret_bias=False):
 
 
 def cstress_model(features:list,
-                  n_iter:int=200,
+                  n_iter:int=20,
                   scorer:str='f1',
                   searchtype: str='grid',
                   outputfilename:str='output.txt'):

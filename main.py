@@ -37,7 +37,7 @@ from cerebralcortex.kernel.datatypes.datapoint import DataPoint
 from cerebralcortex.kernel.datatypes.datastream import DataStream
 from cerebralcortex.legacy import find
 from cerebralcortex.model_development.model_development import cstress_model
-import hickle
+
 
 argparser = argparse.ArgumentParser(description="Cerebral Cortex Test Application")
 argparser.add_argument('--base_directory')
@@ -123,17 +123,7 @@ features = cstress_feature_vector.collect()
 
 features1 = copy.deepcopy(features)
 
-print(len(features1))
-
-f = open('features1.hkl','w')
-
-hickle.dump(features1,f)
-
-features2 = hickle.load('features1.hkl')
-
-print(len(features2))
-
-cstress_model = cstress_model(features=features1)
+cstress_model = cstress_model(features=features2)
 
 # results = ids.map(loader)
 # pprint(results.collect())

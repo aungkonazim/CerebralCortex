@@ -28,41 +28,14 @@ import pytz
 
 import numpy as np
 from collections import Counter
-from collections import Sized
-from pathlib import Path
 from pprint import pprint
 from sklearn import svm, metrics, preprocessing
-from sklearn.base import clone, is_classifier
 from sklearn.cross_validation import LabelKFold
-from sklearn.cross_validation import check_cv
-from sklearn.externals.joblib import Parallel, delayed
-from sklearn.grid_search import GridSearchCV, RandomizedSearchCV, ParameterSampler, ParameterGrid
-from sklearn.utils.validation import _num_samples, indexable
 from cerebralcortex.model_development.modifiedGridSearchCV import ModifiedGridSearchCV, cross_val_probs
 from cerebralcortex.model_development.modifiedRandomizedSearchCV import ModifiedRandomizedSearchCV
 from cerebralcortex.model_development.saveModel import saveModel
-# from spark_sklearn import GridSearchCV
 
-def model_building(sc,traindata,trainlabels,subjects):
-    traindata = np.asarray(traindata, dtype=np.float64)
-    trainlabels = np.asarray(trainlabels)
 
-    normalizer = preprocessing.StandardScaler()
-    traindata = normalizer.fit_transform(traindata)
-
-    lkf = LabelKFold(subjects, n_folds=len(np.unique(subjects)))
-
-    delta = 0.1
-    parameters = {'kernel': ['rbf'],
-                  'C': [2 ** x for x in np.arange(-12, 12, 0.5)],
-                  'gamma': [2 ** x for x in np.arange(-12, 12, 0.5)],
-                  'class_weight': [{0: w, 1: 1 - w} for w in np.arange(0.0, 1.0, delta)]}
-
-    svc = svm.SVC(probability=True, verbose=False, cache_size=2000)
-    clf = GridSearchCV(sc=sc,estimator=svc, param_grid=parameters,n_jobs=4,cv=lkf)
-    clf.fit(traindata, trainlabels)
-
-    pprint(clf.best_params_)
 
 
 def decode_label(label):
@@ -214,7 +187,7 @@ def f1Bias_scorer_CV(probs, y, ret_bias=False):
 
 def cstress_model(features:list,
                   n_iter:int=20,
-                  scorer:str='f1',
+                  scorer: str='f1',
                   searchtype: str='grid',
                   outputfilename:str='output.txt'):
     """
@@ -224,6 +197,7 @@ def cstress_model(features:list,
     :return: returns the cStress Model
     """
     traindata, trainlabels, subjects = feature_label_separator(features)
+
 
     traindata = np.asarray(traindata, dtype=np.float64)
     trainlabels = np.asarray(trainlabels)
@@ -242,22 +216,22 @@ def cstress_model(features:list,
     svc = svm.SVC(probability=True, verbose=False, cache_size=2000)
 
     if scorer == 'f1':
-        scorer = f1Bias_scorer_CV
+        scorer_func = f1Bias_scorer_CV
     else:
-        scorer = Twobias_scorer_CV
+        scorer_func = Twobias_scorer_CV
 
     if searchtype == 'grid':
-        clf = ModifiedGridSearchCV(svc, parameters, cv=lkf, n_jobs=-1, scoring=scorer, verbose=1, iid=False)
+        clf = ModifiedGridSearchCV(svc, parameters, cv=lkf, n_jobs=-1, scoring=scorer_func, verbose=1, iid=False)
     else:
         clf = ModifiedRandomizedSearchCV(estimator=svc, param_distributions=parameters, cv=lkf, n_jobs=-1,
-                                         scoring=scorer, n_iter=n_iter,
+                                         scoring=scorer_func, n_iter=n_iter,
                                          verbose=1, iid=False)
 
     clf.fit(traindata, trainlabels)
     pprint(clf.best_params_)
 
     CV_probs = cross_val_probs(clf.best_estimator_, traindata, trainlabels, lkf)
-    score, bias = scorer(CV_probs, trainlabels, True)
+    score, bias = scorer_func(CV_probs, trainlabels, True)
     print(score, bias)
     if not bias == []:
         saveModel(outputfilename, clf.best_estimator_, normalizer, bias)

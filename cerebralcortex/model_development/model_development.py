@@ -38,7 +38,7 @@ from sklearn.cross_validation import check_cv
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV, ParameterSampler, ParameterGrid
 from sklearn.utils.validation import _num_samples, indexable
-from cerebralcortex.model_development.modifiedGridSearchCV import ModifiedGridSearchCV
+from cerebralcortex.model_development.modifiedGridSearchCV import ModifiedGridSearchCV, cross_val_probs
 from cerebralcortex.model_development.modifiedRandomizedSearchCV import ModifiedRandomizedSearchCV
 from cerebralcortex.model_development.saveModel import saveModel
 # from spark_sklearn import GridSearchCV
@@ -209,6 +209,7 @@ def f1Bias_scorer_CV(probs, y, ret_bias=False):
         return f1, bias
     else:
         return f1
+
 
 
 def cstress_model(features:list,

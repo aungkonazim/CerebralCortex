@@ -29,6 +29,8 @@ from sklearn.cross_validation import check_cv
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.grid_search import GridSearchCV, ParameterGrid
 from sklearn.utils.validation import _num_samples, indexable
+import hickle
+
 
 def cross_val_probs(estimator, X, y, cv):
     probs = np.zeros(len(y))
@@ -116,7 +118,11 @@ class ModifiedGridSearchCV(GridSearchCV):
         )(delayed(cv_fit_and_score)(clone(base_estimator), X, y, self.scoring,
                                       parameters, cv=cv)
             for parameters in parameter_iterable)
-        print(out)
+
+        f = open('out.hkl','w')
+
+        hickle.dump(out,f)
+
         best = sorted(out, reverse=True)[0]
         self.best_params_ = best[1]
         self.best_score_ = best[0]

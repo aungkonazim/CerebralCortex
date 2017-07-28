@@ -68,4 +68,4 @@ def saveModel(filename, model, normparams, bias=0.5):
                      [NormParam(normparams.mean_[i], normparams.scale_[i]) for i in range(len(normparams.scale_))])
 
     with open(filename, 'w') as f:
-        (f, model.to_JSON())
+        f.write(model.to_JSON())

@@ -37,6 +37,7 @@ from cerebralcortex.kernel.datatypes.datapoint import DataPoint
 from cerebralcortex.kernel.datatypes.datastream import DataStream
 from cerebralcortex.legacy import find
 from cerebralcortex.model_development.model_development import cstress_model
+import hickle
 
 argparser = argparse.ArgumentParser(description="Cerebral Cortex Test Application")
 argparser.add_argument('--base_directory')
@@ -111,6 +112,7 @@ def loader(identifier: int):
 
 
 start_time = time.time()
+
 ids = CC.sparkSession.sparkContext.parallelize([i for i in range(3, 5)])
 
 data = ids.map(lambda i: loader(i)).filter(lambda x: 'participant' in x)
@@ -120,6 +122,16 @@ cstress_feature_vector = cStress(data)
 features = cstress_feature_vector.collect()
 
 features1 = copy.deepcopy(features)
+
+print(len(features1))
+
+f = open('features1.hkl','w')
+
+hickle.dump(features1,f)
+
+features2 = hickle.load('features1.hkl')
+
+print(len(features2))
 
 cstress_model = cstress_model(features=features1)
 

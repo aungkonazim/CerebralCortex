@@ -24,5 +24,5 @@
 
 
 def find(directory, metadata):
-    filepath = directory + metadata['participant'] + '/' + metadata['datasource'] + '.txt.gz'
+    filepath = directory + metadata['participant'] + '\\' + metadata['datasource'] + '.txt.gz'
     return filepath

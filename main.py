@@ -36,9 +36,9 @@ from cerebralcortex.data_processor.preprocessor import parser
 from cerebralcortex.kernel.datatypes.datapoint import DataPoint
 from cerebralcortex.kernel.datatypes.datastream import DataStream
 from cerebralcortex.legacy import find
+from cerebralcortex.model_development.model_development import cstress_model
+import copy
 from pyspark import SparkContext
-
-
 
 argparser = argparse.ArgumentParser(description="Cerebral Cortex Test Application")
 argparser.add_argument('--base_directory')
@@ -46,7 +46,7 @@ args = argparser.parse_args()
 
 # To run this program, please specific a program argument for base_directory that is the path to the test data files.
 # e.g. --base_directory /Users/hnat/data/
-basedir = args.base_directory
+basedir = 'C:\\Users\\aungkon\\Desktop\\cstress\\data\\'
 
 configuration_file = os.path.join(os.path.dirname(__file__), 'cerebralcortex.yml')
 
@@ -62,7 +62,7 @@ def readfile(filename):
             if isinstance(dp, DataPoint):
                 data.append(dp)
                 count += 1
-            if count > 20000:
+            if count > 200000:
                 break
     return data
 
@@ -74,36 +74,8 @@ def readfile_ground_truth(filename):
             dp = parser.ground_truth_data_processor(l)
             if isinstance(dp, DataPoint):
                 data.append(dp)
-                count += 1
-            if count > 20000:
-                break
+
     return data
-
-def readfile_ground_truth(filename):
-    data = []
-    with gzip.open(filename, 'rt') as f:
-        count = 0
-        for l in f:
-            dp = parser.ground_truth_data_processor(l)
-            if isinstance(dp, DataPoint):
-                data.append(dp)
-                count += 1
-            if count > 20000:
-                break
-    return data
-
-def readfile_feature(filename):
-    data = []
-    with open(filename, 'rt') as f:
-        count = 0
-        for l in f:
-            dp = parser.feature_vector_data_processor(l)
-            if isinstance(dp, DataPoint):
-                data.append(dp)
-                count += 1
-    return data
-
-
 
 def loader(identifier: int):
     participant = "SI%02d" % identifier
@@ -112,28 +84,25 @@ def loader(identifier: int):
 
     try:
         ecg = DataStream(None, participant_uuid)
-        ecg.data = readfile(basedir+"\\"+participant+"\\"+"ecg.txt.gz")
+        ecg.data = readfile(find(basedir, {"participant": participant, "datasource": "ecg"}))
 
         rip = DataStream(None, participant_uuid)
-        rip.data = readfile(basedir+"\\"+participant+"\\"+"rip.txt.gz")
+        rip.data = readfile(find(basedir, {"participant": participant, "datasource": "rip"}))
 
         accelx = DataStream(None, participant_uuid)
-        accelx.data = readfile(basedir+"\\"+participant+"\\"+"accelx.txt.gz")
+        accelx.data = readfile(find(basedir, {"participant": participant, "datasource": "accelx"}))
 
         accely = DataStream(None, participant_uuid)
-        accely.data = readfile(basedir+"\\"+participant+"\\"+"accely.txt.gz")
+        accely.data = readfile(find(basedir, {"participant": participant, "datasource": "accely"}))
 
         accelz = DataStream(None, participant_uuid)
-        accelz.data = readfile(basedir+"\\"+participant+"\\"+"accelz.txt.gz")
+        accelz.data = readfile(find(basedir, {"participant": participant, "datasource": "accelz"}))
 
         stress_marks = DataStream(None, participant_uuid)
-        stress_marks.data = readfile_ground_truth(basedir+"\\"+participant+"\\"+"stress_marks.txt.gz")
-
-        feature = DataStream(None, participant_uuid)
-        feature.data = readfile_feature("C:\\Users\\aungkon\\Desktop\\Cstress_data\\"+participant+"\\"+"org.md2k.cstress.fv.csv")
+        stress_marks.data = readfile_ground_truth(find(basedir, {"participant": participant, "datasource": "stress_marks"}))
 
         return {"participant": participant, "ecg": ecg, "rip": rip, "accelx": accelx, "accely": accely,
-                "accelz": accelz, "stress_marks": stress_marks, "feature" : feature}
+                "accelz": accelz, "stress_marks": stress_marks}
 
     except Exception as e:
         print("File missing for %s" % participant)
@@ -146,14 +115,18 @@ def loader(identifier: int):
 start_time = time.time()
 
 sc = SparkContext("local", "Simple App")
-ids = sc.parallelize([i for i in range(1,4)])
 
-data = ids.map(lambda i: loader(i)).filter(lambda ds: "participant" in ds)
+ids = sc.parallelize([i for i in range(3,5)])
 
-cstress_feature_vector = cStress(data,sc)
+data = ids.map(lambda i: loader(i)).filter(lambda x: 'participant' in x)
 
-# pprint(cstress_feature_vector.collect())
+cstress_feature_vector = cStress(data)
 
+features = cstress_feature_vector.collect()
+
+features1 = copy.deepcopy(features)
+
+cstress_model = cstress_model(features=features1)
 
 # results = ids.map(loader)
 # pprint(results.collect())

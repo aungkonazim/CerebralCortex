@@ -26,6 +26,8 @@ import datetime
 import uuid
 from typing import List
 
+from pytz import timezone
+
 
 class LoadMetadata:
     def mySQLQueryBuilder(self, jsonQueryParam: dict) -> str:
@@ -219,3 +221,68 @@ class LoadMetadata:
         stream_ids = [item['identifier'] for item in self.cursor.fetchall()]
 
         return stream_ids
+
+    def get_annotation_id(self, stream_id: uuid, annotation_stream_name: uuid) -> uuid:
+        """
+        It returns annotation stream id associated to a data-stream. This method will only return first annotation stream id if there are more than one matched
+        annotation stream ids
+        :param stream_id:
+        :return:
+        """
+        if annotation_stream_name == "":
+            raise ValueError("Annotation stream name cannot be empty.")
+
+        qry = "SELECT annotations->>\"$[0].identifier\" as id from " + self.datastreamTable + " where identifier=%s and json_contains(annotations->>\"$[*].name\", json_array(%s))"
+        vals = stream_id, annotation_stream_name
+
+        self.cursor.execute(qry, vals)
+        rows = self.cursor.fetchall()
+        return rows[0]["id"].decode("utf-8")
+
+    def login_user(self, user_name: str, password: str) -> bool:
+        """
+
+        :param user_name:
+        :param password:
+        :return:
+        """
+        if not user_name or not password:
+            raise ValueError("User name and password cannot be empty/null.")
+
+        qry = "select * from user where user_name=%s and password=%s"
+        vals = user_name, password
+
+        self.cursor.execute(qry, vals)
+        rows = self.cursor.fetchall()
+        if len(rows) == 0:
+            return False
+        else:
+            return True
+
+    def is_auth_token_valid(self, token_owner: str, auth_token: str, auth_token_expiry_time: datetime) -> bool:
+        """
+
+        :param token_owner:
+        :param auth_token:
+        :param auth_token_expiry_time:
+        :return:
+        """
+        if not auth_token or not auth_token_expiry_time:
+            raise ValueError("Auth token and auth-token expiry time cannot be null/empty.")
+
+        qry = "select * from user where token=%s and user_name=%s"
+        vals = auth_token, token_owner
+
+        self.cursor.execute(qry, vals)
+        rows = self.cursor.fetchall()
+
+        token_expiry_time = rows[0]["token_expiry"]
+        localtz = timezone(self.CC_obj.time_zone)
+        token_expiry_time = localtz.localize(token_expiry_time)
+
+        if len(rows) == 0:
+            return False
+        elif token_expiry_time < auth_token_expiry_time:
+            return False
+        else:
+            return True

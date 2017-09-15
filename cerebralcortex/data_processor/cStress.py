@@ -122,8 +122,8 @@ def cStress(rdd: RDD) -> RDD:
     ecg_rr_and_quality = ecg_rr_rdd.join(ecg_rr_quality)
 
     windowed_ecg_features = ecg_rr_and_quality.map(
-         lambda ds: (ds[0], ecg_feature_computation(datastream=ds[1][0], quality_datastream=ds[1][1],
-                                                    window_size=60, window_offset=60)))
+        lambda ds: (ds[0], ecg_feature_computation(datastream=ds[1][0], quality_datastream=ds[1][1],
+                                                   window_size=60, window_offset=60)))
 
     peak_valley_rr_int = peak_valley.join(ecg_rr_rdd)  # TODO: Add RR_Quality here?
 

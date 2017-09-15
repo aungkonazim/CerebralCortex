@@ -90,7 +90,7 @@ def cStress(rdd: RDD) -> RDD:
     # Accelerometer Feature Computation
     accel_features = accel.map(lambda ds: (ds[0], accelerometer_features(ds[1], window_length=10.0)))
 
-    windowed_accel_features = accel_features.map(lambda ds: (ds[0], window_accel(ds[1], window_size=60)))
+    #windowed_accel_features = accel_features.map(lambda ds: (ds[0], window_accel(ds[1], window_size=60)))
 
 
     rip_corrected_and_quality = rip_corrected.join(rip_quality)
@@ -99,7 +99,9 @@ def cStress(rdd: RDD) -> RDD:
     peak_valley = rip_corrected_and_quality.map(
         lambda ds: (ds[0], rip.compute_peak_valley(rip=ds[1][0], rip_quality=ds[1][1])))
 
+
     rip_cycle_features = peak_valley.map(lambda ds: (ds[0], rip_cycle_feature_computation(ds[1][0])))
+
 
     windowed_rip_features = rip_cycle_features.map(lambda ds: (ds[0], window_rip(peak_datastream=ds[1][0],
                                                                                  valley_datastream=ds[1][1],
@@ -143,5 +145,5 @@ def cStress(rdd: RDD) -> RDD:
 
     train_data_with_ground_truth_and_subjects = feature_vector_with_ground_truth.map(lambda ds: analyze_events_with_features(participant=ds[0],stress_mark_stream=ds[1][1],feature_stream=ds[1][0]))
 
-
     return train_data_with_ground_truth_and_subjects  # Data stream with data points (ST, ET, [...37 values...])
+

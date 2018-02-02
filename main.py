@@ -121,7 +121,7 @@ cstress_feature_vector = cStress(data)
 
 features = cstress_feature_vector.collect()
 
-features1 = copy.deepcopy(features)
+features2 = copy.deepcopy(features)
 
 cstress_model = cstress_model(features=features2)
 

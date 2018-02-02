@@ -42,9 +42,18 @@ def data_processor(input_string):
 def ground_truth_data_processor(input_string):
     try:
         elements = [x.strip() for x in input_string.split(',')]
-        start_timestamp = datetime.fromtimestamp(float(elements[2]) / 1000.0, pytz.timezone('US/Central'))
-        end_timestamp = datetime.fromtimestamp(float(elements[3]) / 1000.0, pytz.timezone('US/Central'))
-        return DataPoint.from_tuple(start_time=start_timestamp, sample=(elements[0], elements[1], elements[4]), end_time=end_timestamp)
-
+        start_timestamp = datetime.fromtimestamp(float(elements[0]) / 1000.0, pytz.timezone('US/Central'))
+        return DataPoint.from_tuple(start_time=start_timestamp, sample= elements[2], end_time=start_timestamp)
     except ValueError:
+        return
+
+
+def data_processor_ppg(input_string):
+    try:
+        [ts,prob1,prob2] = input_string.split(',')
+        timestamp = datetime.fromtimestamp(float(ts) / 1000.0, pytz.timezone('US/Central'))
+        return DataPoint.from_tuple(start_time=timestamp, sample=[prob1,prob2])
+    except ValueError:
+        # Skip bad values and filter them later
+        # print("ValueError: " + str(input))
         return
